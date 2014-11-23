@@ -129,7 +129,8 @@ romrsf = ''
 romrsf1 = 'CardInfo:\n  MediaSize               : '
 romrsf2 = '\n  MediaType               : '
 romrsf3 = '\n  CardDevice              : '
-romrsf4 = '\n\nSystemControlInfo:\n  SaveDataSize: 512KB\n'
+romrsf4 = '\n\nOption:\n  MediaFootPadding: true'
+romrsf5 = '\n\nSystemControlInfo:\n  SaveDataSize: 512KB\n'
 
 mediaSizes = ['128MB', '256MB', '512MB', '1GB', '2GB', '4GB', '8GB']
 romSizes = [128*1024*1024, 256*1024*1024, 512*1024*1024, 1*1024*1024*1024, 2*1024*1024*1024, 4*1024*1024*1024, 8*1024*1024*1024]
@@ -138,9 +139,9 @@ if romSizes[sizeIDX] < fSize:
 	sizeIDX += 1
 
 if cardType == 1: #Card1
-	romrsf = romrsf1 + mediaSizes[sizeIDX] + romrsf2 + 'Card1' + romrsf3 + 'NorFlash' + romrsf4
+	romrsf = romrsf1 + mediaSizes[sizeIDX] + romrsf2 + 'Card1' + romrsf3 + 'NorFlash' + romrsf4 + romrsf5
 else: #Card2
-	romrsf = romrsf1 + mediaSizes[sizeIDX] + romrsf2 + 'Card2' + romrsf3 + 'None'
+	romrsf = romrsf1 + mediaSizes[sizeIDX] + romrsf2 + 'Card2' + romrsf3 + 'None' + romrsf4
 
 with open('rom.rsf', 'wb') as fh:
 	fh.write(romrsf)
@@ -152,19 +153,5 @@ os.system(mRomCmd)
 if not os.path.isfile(titleid + '.3ds'):
 	print "Something went wrong."
 	raise SystemExit(0)
-
-
-#This should be done with makerom in the RSF
-with open(titleid + '.3ds', 'ab+') as fh: #File padding
-	fh.seek(0, os.SEEK_END)
-	paddingLeft = (romSizes[sizeIDX])-fh.tell()
-	while paddingLeft > 0:
-		if paddingLeft < 0x400000:
-			padSize = paddingLeft
-		else:
-			padSize = 0x400000
-		fh.write('\xFF'*padSize)
-		paddingLeft -= 0x400000
-
 
 print 'Done!'
