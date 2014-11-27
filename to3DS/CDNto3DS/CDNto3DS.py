@@ -97,7 +97,7 @@ if tmd[:4] != '\x00\x01\x00\x04':
 	print 'Unexpected signature type.'
 	raise SystemExit(0)
 
-# If Not Application Title Exit
+# If not normal application, don't make 3ds
 if titleid[:8] != '00040000':
 	make3ds = 0
 
@@ -126,7 +126,9 @@ if titleid[:8] == '0004008c':
 contentCount = unpack('>H', tmd[0x206:0x208])[0]
 
 print 'Content count: ' + str(contentCount) + '\n'
-if contentCount >= 8 :
+
+# If not normal application, don't make 3ds
+if contentCount > 8 :
 	make3ds = 0
 
 	
@@ -136,6 +138,8 @@ for i in xrange(contentCount):
 	cOffs = 0xB04+(0x30*i)
 	cID = format(unpack('>I', tmd[cOffs:cOffs+4])[0], '08x')
 	cIDX = format(unpack('>H', tmd[cOffs+4:cOffs+6])[0], '04x')
+	
+	# If not normal application, don't make 3ds
 	if unpack('>H', tmd[cOffs+4:cOffs+6])[0] >= 8 :
 		make3ds = 0
 
