@@ -1,4 +1,4 @@
-Get makerom from https://github.com/3DSGuy/Project_CTR
+Get makerom from https://github.com/Relys/Project_CTR
 
 Usage:
 	print 'Usage: CDNto3DS.py TitleID TitleKey [-redown -redec -no3ds -nocia]'
