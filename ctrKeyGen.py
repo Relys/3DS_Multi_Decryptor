@@ -100,7 +100,7 @@ def reverseCtypeArray(ctypeArray): #Reverses a ctype array and converts it to a 
 	return ''.join('%02X' % x for x in ctypeArray[::-1])
 	#Is there a better way to do this?
 
-def getNcchAesCounter(header, type): #Function based on code from ctrtool's source: https://github.com/3DSGuy/Project_CTR
+def getNcchAesCounter(header, type): #Function based on code from ctrtool's source: https://github.com/Relys/Project_CTR
 	counter = bytearray(b'\x00' * 16)
 	if header.formatVersion == 2 or header.formatVersion == 0:
 		counter[:8] = bytearray(header.titleId[::-1])
