@@ -71,7 +71,7 @@ uint32_t ncchPadgen()
 		else
 			return 1;
 	}
-	draw_fillrect(0, 50, 400, 180, BLACK);
+	draw_fillrect(0, 50, SCREEN_TOP_W, (SCREEN_TOP_H-10-50), BLACK);
 	
 	return 0;
 }
@@ -120,7 +120,7 @@ uint32_t sdPadgen()
 		else
 			return 1;
 	}
-	draw_fillrect(0, 50, 400, 180, BLACK);
+	draw_fillrect(0, 50, SCREEN_TOP_W, (SCREEN_TOP_H-10-50), BLACK);
 	
 	return 0;
 }
@@ -158,12 +158,26 @@ uint32_t nandPadgen()
 	}
 }
 
-static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
+inline uint32_t swap_uint32(uint32_t val)
+{
+    val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF ); 
+    return (val << 16) | (val >> 16);
+}
 
+//Update 11/25/14
+//Since this function just generates XORPADs, it's pointless to do CTR mode with zero'd input. Just do ECB with the "CTR" as input.
+//Changed input endianness to little endian. Makes updating the "CTR" much easier.
+//Inlined and changed some stuff.
+//Gets ~3.15MB/s, up from ~1.8MB/s before
+
+//Update 11/26/14
+//Switched to assembly for inner loop.
+//BLOCK_SIZE raised to 4MB.
+//Gets ~3.55MB/s
 uint32_t createPad(struct pad_info *info)
 {
 	#define BUFFER_ADDR ((volatile uint8_t*)0x21000000)
-	#define BLOCK_SIZE  (1*1024*1024)
+	#define BLOCK_SIZE  (4*1024*1024)
 	
 	uint8_t fileHandle[32] = {0x0};
 	uint32_t bytesWritten;
@@ -179,18 +193,78 @@ uint32_t createPad(struct pad_info *info)
 		setup_aeskey(info->keyslot, AES_BIG_INPUT|AES_NORMAL_INPUT, info->keyY);
 	use_aeskey(info->keyslot);
 	
-	uint8_t ctr[16] __attribute__((aligned(32)));
+	uint32_t ctr[4] __attribute__((aligned(32)));
 	memcpy(ctr, info->CTR, 16);
+	//CTR we get is big endian, swap it.
+	ctr[0] = swap_uint32(ctr[0]);
+	ctr[1] = swap_uint32(ctr[1]);
+	ctr[2] = swap_uint32(ctr[2]);
+	ctr[3] = swap_uint32(ctr[3]);
 	
 	uint32_t size_bytes = info->size_mb*1024*1024;
 	uint32_t size_100 = size_bytes/100;
 	uint32_t i, j;
+	uint32_t buffAddr, buffEnd;
+	
 	for (i = 0; i < size_bytes; i += BLOCK_SIZE) {
-		for (j = 0; (j < BLOCK_SIZE) && (i+j < size_bytes); j+= 16) {
-			set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
-			aes_decrypt((void*)zero_buf, (void*)BUFFER_ADDR+j, ctr, 1, AES_CTR_MODE);
-			add_ctr(ctr, 1);
+		buffAddr = (uint32_t)BUFFER_ADDR;
+		
+		for(j = 0; (j < BLOCK_SIZE) && (i+j < size_bytes); j += (512*1024))
+		{
+			*REG_AESCNT = 0;
+			*REG_AESBLKCNT = ((512*1024) / AES_BLOCK_SIZE) << 16;
+			*REG_AESCNT = AES_ECB_ENCRYPT_MODE |
+				AES_CNT_START |
+				AES_CNT_INPUT_ORDER |
+				AES_CNT_OUTPUT_ORDER |
+				//AES_CNT_INPUT_ENDIAN |
+				AES_CNT_OUTPUT_ENDIAN |
+				AES_CNT_FLUSH_READ |
+				AES_CNT_FLUSH_WRITE;
+			
+			buffEnd = buffAddr + (512*1024);
+			
+			//This is my first time using inline assembly, and it probably shows.
+			asm volatile(
+				"LDR     R1, =0x10009000\n\t" /* Base AES IO Register */
+				
+				"wrFifoWait:\n\t"
+					"LDR     R0, [R1]\n\t"
+					"AND     R0, R0, #0x1F\n\t"
+					"CMP     R0, #0xF\n\t"
+					"BHI     wrFifoWait\n\t"
+				
+				"STR     %[ctr0], [R1,#8]\n\t" /* Write input into AES WR FIFO */
+				"STR     %[ctr1], [R1,#8]\n\t"
+				"STR     %[ctr2], [R1,#8]\n\t"
+				"STR     %[ctr3], [R1,#8]\n\t"
+				
+				"rdFifoWait:\n\t"
+					"LDR     R0, [R1]\n\t"
+					"MOV     R0, R0,LSR#5\n\t"
+					"AND     R0, R0, #0x1F\n\t"
+					"CMP     R0, #3\n\t"
+					"BLS     rdFifoWait\n\t"
+				
+				"LDR     R5, [R1,#0xC]\n\t" /* Read output from AES RD FIFO */
+				"LDR     R6, [R1,#0xC]\n\t"
+				"LDR     R7, [R1,#0xC]\n\t"
+				"LDR     R8, [R1,#0xC]\n\t"
+				"STMIA   %[buffAddr]!, {R5-R8}\n\t"
+				
+				"ADDS    %[ctr3], %[ctr3], #1\n\t" /* Increment the "CTR" */
+				"ADCS    %[ctr2], %[ctr2], #0\n\t"
+				"ADCS    %[ctr1], %[ctr1], #0\n\t"
+				"ADC     %[ctr0], %[ctr0], #0\n\t"
+				
+				"CMP     %[buffAddr], %[buffEnd]\n\t" /* Did we finish our 512KB block? */
+				"BNE     wrFifoWait"
+				: [ctr0]"+r" (ctr[0]), [ctr1]"+r" (ctr[1]), [ctr2]"+r" (ctr[2]), [ctr3]"+r" (ctr[3]), [buffAddr]"+r" (buffAddr) /* Output */
+				: [buffEnd]"r" (buffEnd) /* Input */
+				: "r0", "r1", "r5", "r6", "r7", "r8" /* Clobbered */
+			);
 		}
+		
 		draw_fillrect(SCREEN_TOP_W-33, 1, 32, 8, BLACK);
 		font_draw_stringf(SCREEN_TOP_W-33, 1, CYAN, "%i%%", (i+j)/size_100);
 		

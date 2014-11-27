@@ -2,24 +2,6 @@
 #include "crypto.h"
 #include "libc.h"
 
-#define REG_AESCNT     ((volatile uint32_t*)0x10009000)
-#define REG_AESBLKCNT  ((volatile uint32_t*)0x10009004)
-#define REG_AESWRFIFO  ((volatile uint32_t*)0x10009008)
-#define REG_AESRDFIFO  ((volatile uint32_t*)0x1000900C)
-#define REG_AESKEYSEL  ((volatile uint8_t *)0x10009010)
-#define REG_AESKEYCNT  ((volatile uint8_t *)0x10009011)
-#define REG_AESCTR     ((volatile uint32_t*)0x10009020)
-#define REG_AESKEYFIFO ((volatile uint32_t*)0x10009108)
-#define REG_AESKEYXFIFO ((volatile uint32_t*)0x10009104)
-
-#define AES_CNT_START         0x80000000
-#define AES_CNT_INPUT_ORDER   0x02000000
-#define AES_CNT_OUTPUT_ORDER  0x01000000
-#define AES_CNT_INPUT_ENDIAN  0x00800000
-#define AES_CNT_OUTPUT_ENDIAN 0x00400000
-#define AES_CNT_FLUSH_READ    0x00000800
-#define AES_CNT_FLUSH_WRITE   0x00000400
-
 void setup_aeskeyX(u8 keyslot, void* keyx)
 {
 	uint32_t * _keyx = (uint32_t*)keyx;
@@ -106,16 +88,16 @@ void set_ctr(int mode, void* iv)
 	}
 }
 
-void add_ctr(void* ctr, u32 carry)
+void add_ctr(void* ctr, uint32_t carry)
 {
-	u32 counter[4];
-	u8 *outctr = (u8 *) ctr;
-	u32 sum;
-	int i;
-
+	uint32_t counter[4];
+	uint8_t *outctr = (uint8_t *) ctr;
+	uint32_t sum;
+	int32_t i;
+	
 	for(i=0; i<4; i++){
 		counter[i] = (outctr[i*4+0]<<24) | (outctr[i*4+1]<<16) | (outctr[i*4+2]<<8) | (outctr[i*4+3]<<0);}
-
+	
 	for(i=3; i>=0; i--)
 	{
 		sum = counter[i] + carry;

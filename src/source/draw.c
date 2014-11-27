@@ -18,7 +18,7 @@ void DEBUG(const char* str, ...)
 	tfp_format(&dest, putcp, (char*)str, va);
 	putcp(&dest, 0);
 	va_end(va);
-	font_draw_string(10, console_y-10, WHITE, buf);
+	font_draw_string(10, console_y, WHITE, buf);
 	
 	console_y+=10;
 	if (console_y >= (SCREEN_TOP_H-10)) {
