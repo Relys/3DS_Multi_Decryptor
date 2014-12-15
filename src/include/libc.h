@@ -8,6 +8,7 @@
 
 void *memset(void * ptr, int value, size_t num);
 void *memcpy(void *destination, const void *source, size_t num);
+int memcmp(const void *a, const void *b, size_t num);
 //Returns number of digits
 //int u32tostr(u32 n, char *out);
 void wstr_to_str(const wchar_t *in, char *out);
