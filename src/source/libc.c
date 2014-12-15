@@ -25,6 +25,18 @@ void *memcpy(void *destination, const void *source, size_t num)
     return destination;
 }
 
+int memcmp(const void *a, const void *b, size_t num)
+{
+    byte *_a = (byte*)a;
+    byte *_b = (byte*)b;
+	size_t i;
+	for(i = 0; i < num; i++) {
+		if(_a[i] != _b[i])
+			return 1;
+	}
+    return 0;
+}
+
 void wstr_to_str(const wchar_t *in, char *out)
 {
     wchar_t *w = (wchar_t *)in;

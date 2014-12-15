@@ -85,6 +85,31 @@ uint32_t sdPadgen()
 	struct sd_info *info;
 	info = (struct sd_info *)((void *)0x20316000);
 	
+	uint8_t movable_seed[0x120] = {0x00};
+	
+	// Load console 0x34 keyY from movable.sed if present on SD card
+	memset(&fileHandle, 0, 32);
+	result = fileOpen(&fileHandle, L"sdmc:/movable.sed", 1);
+	if(result == 0)
+	{
+		DEBUG("Loading custom movable.sed");
+		fileRead(&fileHandle, &bytesRead, &movable_seed, 0x120);
+		fileClose(&fileHandle);
+		if(bytesRead != 0x120)
+		{
+			DEBUG("movable.sed is too small!");
+			return 1;
+		}
+		if(memcmp(movable_seed, "SEED", 4) != 0)
+		{
+			DEBUG("movable.sed is too corrupt!");
+			return 1;
+		}
+		
+		setup_aeskey(0x34, AES_BIG_INPUT|AES_NORMAL_INPUT, &movable_seed[0x110]);
+		use_aeskey(0x34);
+	}
+	
 	memset(&fileHandle, 0, 32);
 	DEBUG("Opening sdmc:/SDinfo.bin ...");
 	result = fileOpen(&fileHandle, L"sdmc:/SDinfo.bin", 1);
