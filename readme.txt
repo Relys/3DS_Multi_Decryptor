@@ -15,15 +15,16 @@ Controls:
 
 YOU NEED TO SUPPLY YOUR OWN COPY OF slot0x25KeyX.bin.
 
+To build for iQUE (Chinese 3DS) please change the following line in rop.py
+_pop_r2_pc = 0x0022952D ### for ique change to 0x00229565
 
-
+Thanks to enler for finding the correct gadget offset.
 
 credits:
 
 sbJFn5r - everything
 relys - coded the original C version of "ctrkeygen"
 xerpi - did some refactoring early on, that I then built off of and made ugly again. :(
-
 
 
 Thanks:
