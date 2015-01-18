@@ -4,6 +4,8 @@ import os
 import errno
 import sys
 import urllib2
+import hashlib
+import binascii
 from struct import unpack, pack
 from subprocess import call
 from binascii import hexlify
@@ -146,11 +148,13 @@ for i in xrange(contentCount):
 	cOffs = 0xB04+(0x30*i)
 	cID = format(unpack('>I', tmd[cOffs:cOffs+4])[0], '08x')
 	cIDX = format(unpack('>H', tmd[cOffs+4:cOffs+6])[0], '04x')
+	cHASH = format(unpack('>32s', tmd[cOffs+16:cOffs+48])[0])
 	if unpack('>H', tmd[cOffs+4:cOffs+6])[0] >= 8 :
 		make3ds = 0
 	
 	print 'Content ID:    ' + cID
 	print 'Content Index: ' + cIDX
+	print 'Content Hash:  ' + binascii.hexlify(cHASH)
 
 	outfname = titleid + '/' + cID
 	if os.path.exists(outfname) == 0 or forceDownload == 1:
@@ -161,10 +165,17 @@ for i in xrange(contentCount):
 		call(["aescbc", outfname, outfname + '.dec', titlekey, cIDX + '0000000000000000000000000000'])
 
 	with open(outfname + '.dec','rb') as fh:
-		fh.seek(0x100)
-		if fh.read(4) != 'NCCH':
+		hash = hashlib.sha256()
+		hash.update(fh.read())
+		sha256file = hash.hexdigest()
+		if sha256file != binascii.hexlify(cHASH):
 			print 'Decryption failed. Wrong title key?'
 			raise SystemExit(0)
+		fh.seek(0x100)
+		if fh.read(4) != 'NCCH':
+			print 'Title is not an NCCH file container'
+			makecia = 0
+			make3ds = 0
 		fh.seek(0, os.SEEK_END)
 		fSize += fh.tell()
 		
