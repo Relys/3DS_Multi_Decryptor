@@ -25,7 +25,9 @@ credits:
 sbJFn5r - everything
 relys - coded the original C version of "ctrkeygen"
 xerpi - did some refactoring early on, that I then built off of and made ugly again. :(
-
+CaitSith2 - Updates to CDNto3DS
+idunoe - Allow user specified moveable.sed
+einstein95 - Padding from .rsf
 
 Thanks:
 
