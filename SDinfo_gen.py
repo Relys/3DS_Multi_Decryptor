@@ -25,10 +25,26 @@ def parsedir(foldername, ctrlist):
 	except Exception as ex:
 		return
 
+	hastitlelist = False
+	if len(sys.argv) > 2:
+		titles = sys.argv[2:]
+		hastitlelist = True
+
 	for dirname, dirnames, filenames in os.walk('.'):
 		for filename in filenames:
 			if 'quota.dat' in filename.lower():
 				continue
+
+			#Only Generate titles requested
+			if hastitlelist:
+				shouldexit = True
+				for title in titles:
+					upper = title.lower()[:8]
+					lower = title.lower()[8:]
+					if dirname.startswith("./" + upper + "/" + lower):
+						shouldexit = False
+				if shouldexit:
+					continue
 
 			fsizeMB = roundUp(os.stat(os.path.join(dirname, filename)).st_size, 1024*1024) / (1024*1024)
 
