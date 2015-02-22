@@ -97,8 +97,8 @@ except urllib2.URLError, e:
 
 tmd = tmd.read()
 
-mkdir_p(titleid)
-open(titleid + '/tmd','wb').write(tmd)
+mkdir_p(titleid + ('_v' + str(version), '')[version == -1])
+open(titleid + ('_v' + str(version), '')[version == -1] + '/tmd','wb').write(tmd)
 print 'Done\n'
 
 if tmd[:4] != '\x00\x01\x00\x04':
@@ -164,7 +164,7 @@ for i in xrange(contentCount):
 	print 'Content Size:  ' + cSIZE
 	print 'Content Hash:  ' + hexlify(cHASH)
 
-	outfname = titleid + '/' + cID
+	outfname = titleid + ('_v' + str(version), '')[version == -1] + '/' + cID
 	if os.path.exists(outfname) == 0 or forceDownload == 1 or os.path.getsize(outfname) != unpack('>Q', tmd[cOffs+8:cOffs+16])[0]:
 		response = urllib2.urlopen(baseurl + '/' + cID)
 		chunk_read(response, outfname, report_hook=chunk_report)
