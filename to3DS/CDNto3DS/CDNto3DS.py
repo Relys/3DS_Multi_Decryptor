@@ -87,7 +87,6 @@ if len(titleid) != 16 or len(titlekey) != 32:
 baseurl = 'http://nus.cdn.c.shop.nintendowifi.net/ccs/download/' + titleid
 
 print 'Downloading TMD...'
-print baseurl + '/tmd' + ('.' + str(version), '')[version == -1]
 
 try:
 	tmd = urllib2.urlopen(baseurl + '/tmd' + ('.' + str(version), '')[version == -1])
