@@ -50,7 +50,8 @@ def chunk_read(response, outfname, chunk_size=2*1024*1024, report_hook=None):
 ##########
 
 def SystemUsage():
-	print 'Usage: CDNto3DS.py TitleID TitleKey [-redown -redec -no3ds -nocia]'
+	print 'Usage: CDNto3DS.py TitleID TitleKey [-vers -redown -redec -no3ds -nocia]'
+	print '-vers   : version of title to fetch'
 	print '-redown : redownload content'
 	print '-redec  : re-attempt content decryption'
 	print '-no3ds  : don\'t build 3DS file'
@@ -67,12 +68,16 @@ forceDecrypt = 0
 make3ds = 1
 makecia = 1
 nohash = 0
+dlversion = -1
 
 for i in xrange(len(sys.argv)) :
 	if sys.argv[i] == '-redown': forceDownload = 1
 	elif sys.argv[i] == '-redec': forceDecrypt = 1
 	elif sys.argv[i] == '-no3ds': makecia = 0
 	elif sys.argv[i] == '-nocia': make3ds = 0
+	elif sys.argv[i] == '-vers': 
+		i += 1
+		dlversion = sys.argv[i]
 	#else : SystemUsage()
 	
 if len(titleid) != 16 or len(titlekey) != 32:
@@ -84,15 +89,15 @@ baseurl = 'http://nus.cdn.c.shop.nintendowifi.net/ccs/download/' + titleid
 print 'Downloading TMD...'
 
 try:
-	tmd = urllib2.urlopen(baseurl + '/tmd')
+	tmd = urllib2.urlopen(baseurl + '/tmd' + ('.' + str(dlversion), '')[dlversion == -1])
 except urllib2.URLError, e:
 	print 'ERROR: Bad title ID?'
 	raise SystemExit(0)
 
 tmd = tmd.read()
 
-mkdir_p(titleid)
-open(titleid + '/tmd','wb').write(tmd)
+mkdir_p(titleid + ('_v' + str(dlversion), '')[dlversion == -1])
+open(titleid + ('_v' + str(dlversion), '')[dlversion == -1] + '/tmd','wb').write(tmd)
 print 'Done\n'
 
 if tmd[:4] != '\x00\x01\x00\x04':
@@ -158,7 +163,7 @@ for i in xrange(contentCount):
 	print 'Content Size:  ' + cSIZE
 	print 'Content Hash:  ' + hexlify(cHASH)
 
-	outfname = titleid + '/' + cID
+	outfname = titleid + ('_v' + str(dlversion), '')[dlversion == -1] + '/' + cID
 	if os.path.exists(outfname) == 0 or forceDownload == 1 or os.path.getsize(outfname) != unpack('>Q', tmd[cOffs+8:cOffs+16])[0]:
 		response = urllib2.urlopen(baseurl + '/' + cID)
 		chunk_read(response, outfname, report_hook=chunk_report)
