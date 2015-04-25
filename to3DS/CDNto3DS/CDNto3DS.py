@@ -207,7 +207,7 @@ for i in xrange(contentCount):
 		fSize += fh.tell()
 		
 	print '\n'
-	mCiaCmd = mCiaCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX
+	mCiaCmd = mCiaCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX + ':0x' + cID
 	mRomCmd = mRomCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX + ':0x' + cID
 
 # Create RSF File
