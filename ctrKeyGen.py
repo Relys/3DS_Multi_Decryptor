@@ -19,7 +19,6 @@ import os
 import sys
 import glob
 import struct
-from hashlib import sha256
 from ctypes import *
 from binascii import hexlify
 
@@ -34,7 +33,7 @@ class ncchHdr(Structure):
 		('makerCode', c_uint16),
 		('formatVersion', c_uint8),
 		('formatVersion2', c_uint8),
-		('seedcheck', c_char * 4),
+		('padding0', c_uint32),
 		('programId', c_uint8 * 0x8),
 		('padding1', c_uint8 * 0x10),
 		('logoHash', c_uint8 * 0x20),
@@ -84,9 +83,6 @@ class ncsdHdr(Structure):
 		('padding2', c_uint8 * 0x30),
 	]
 
-class SeedError(Exception):
-        pass
-
 ncsdPartitions = [b'Main', b'Manual', b'DownloadPlay', b'Partition4', b'Partition5', b'Partition6', b'Partition7', b'UpdateData']
 
 def roundUp(numToRound, multiple):  #From http://stackoverflow.com/a/3407254
@@ -123,66 +119,6 @@ def getNcchAesCounter(header, type): #Function based on code from ctrtool's sour
 	
 	return bytes(counter)
 
-def getNewkeyY(keyY,header,titleId):
-	tids = []
-	seeds = []
-	seedif = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'seedinfo.bin')
-	if os.path.exists(seedif):
-		with open(seedif,'rb')as seedinfo:
-			if not seedinfo.read(4) == 'SEED':
-				raise SeedError("Not as seedinfo!")
-			seedcount = struct.unpack('<I',seedinfo.read(4))[0]
-
-			for i in range(seedcount):
-				tids.append(seedinfo.read(8))
-			for i in range(seedcount):
-				seeds.append(bytearray(seedinfo.read(16)))
-	else:
-		filenames = os.listdir(os.path.dirname(os.path.realpath(sys.argv[0])))
-		x = 0
-		for fn in filenames:
-			if fnmatch.fnmatch(fn,'*.sav'):
-				with open(fn,'rb') as savefile:
-					savedata = savefile.read()
-					while savedata.find('SEEDDB')>=0:
-						SBoffset = savedata.find('SEEDDB')
-						tidoffset = (struct.unpack('<I',savedata[SBoffset+24:SBoffset+28]-1)[0]) * 4096 + SBoffset - 52 + 4096
-						for i in range(2000):
-							tid = savedata[tidoffset:tidoffset+8]
-							if not tid == '\x00\x00\x00\x00':
-								tids.append(tid)
-							tidoffset += 8
-						for i in range(2000):
-							seed = savedata[tidoffset:tidoffset+16]
-							if not seed == '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00':
-								seeds.append(bytearray(seed))
-								tidoffset += 16
-						savedata = savedata[tidoffset:]
-			else:
-				x += 1
-		if x >= len(filenames):
-			raise SeedError("Can't find SEEDDB file!")
-	if not len(tids) == len(seeds):
-		raise SeedError('Seed info incomplete!')
-	for i in range(seedcount):
-		if tids[i] == titleId:
-			seedcheck = struct.unpack('>I',header.seedcheck)[0]
-			if int(sha256(seeds[i] + tids[i]).hexdigest()[:8],16) == seedcheck:
-				keystr = sha256(keyY + seeds[i]).hexdigest()[:32]
-				v = []
-				for j in range(0,32,8):
-					v.append(int(keystr[j:j+8],16))
-				w = []
-				for j in v:
-					w.append(struct.pack('>I',j))
-				v = w
-				newkeyY = ''
-				for j in v:
-					newkeyY += j
-				return bytearray(newkeyY)
-			else:
-				raise SeedError('Seed check fail, wrong seed?')
-		raise SeedError("Can't find seed!")
 
 def parseNCSD(fh):
 	print 'Parsing NCSD in file "%s":' % os.path.basename(fh.name)
@@ -230,28 +166,25 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
 	uses7xCrypto = bytearray(header.flags)[3]
 	if uses7xCrypto:
 		print tab + 'Uses 7.x NCCH crypto'
-	useSeedCrypto = uses7xCrypto and header.flags[7] == 32
-	if useSeedCrypto:
-		keyY = getNewkeyY(keyY,header,struct.pack('I',int(titleId[8:],16))+struct.pack('I',int(titleId[:8],16)))
 	
 	print ''
 	
 	if header.exhdrSize:
-		data = data + parseNCCHSection(header, ncchSection.exheader, 0, 0, 1, tab)
+		data = data + parseNCCHSection(header, ncchSection.exheader, 0, 1, tab)
 		data = data + genOutName(titleId, ncsdPartitions[idx], b'exheader')
 		entries += 1
 		print ''
 	if header.exefsSize: #We need generate two xorpads for exefs if it uses 7.x crypto, since only a part of it uses the new crypto.
-		data = data + parseNCCHSection(header, ncchSection.exefs, 0, 0, 1, tab)
+		data = data + parseNCCHSection(header, ncchSection.exefs, 0, 1, tab)
 		data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_norm')
 		entries += 1
 		if uses7xCrypto:
-			data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, useSeedCrypto, 0, tab)
+			data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, 0, tab)
 			data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_7x')
 			entries += 1
 		print ''
 	if header.romfsSize:
-		data = data + parseNCCHSection(header, ncchSection.romfs, uses7xCrypto, useSeedCrypto, 1, tab)
+		data = data + parseNCCHSection(header, ncchSection.romfs, uses7xCrypto, 1, tab)
 		data = data + genOutName(titleId, ncsdPartitions[idx], b'romfs')
 		entries += 1
 		print ''
@@ -260,7 +193,7 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
 	
 	return [entries, data]
 
-def parseNCCHSection(header, type, uses7xCrypto, useSeedCrypto, doPrint, tab):
+def parseNCCHSection(header, type, uses7xCrypto, doPrint, tab):
 	if type == ncchSection.exheader:
 		sectionName = 'ExHeader'
 		offset = 0x200 #Always 0x200
@@ -279,10 +212,6 @@ def parseNCCHSection(header, type, uses7xCrypto, useSeedCrypto, doPrint, tab):
 	
 	counter = getNcchAesCounter(header, type)
 	keyY = bytearray(header.signature[:16])
-	
-	titleId = reverseCtypeArray(header.titleId)
-	if useSeedCrypto:
-		keyY = getNewkeyY(keyY,header,struct.pack('I',int(titleId[8:],16))+struct.pack('I',int(titleId[:8],16)))
 	
 	sectionMb = roundUp(sectionSize, 1024*1024) / (1024*1024)
 	if sectionMb == 0:
