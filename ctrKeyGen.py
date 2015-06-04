@@ -14,6 +14,13 @@
 #   4 bytes   Uses 7x crypto? (0 or 1)
 # 112 bytes   Output file name in UTF-16 (format used: "/titleId.partitionName.sectionName.xorpad")
 #####
+#seedinfo.bin format
+#
+#4  bytes   Magic "SEED"
+#4  bytes   Number of Seeds
+#8  bytes*(Number of Seeds)   TitleID
+#16 bytes*(Number of Seeds)   Seeds
+#####
 
 import os
 import sys
@@ -129,11 +136,11 @@ def getNewkeyY(keyY,header,titleId):
 	seeds = []
 	seedif = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'seedinfo.bin')
 	if os.path.exists(seedif):
+		#Read seeds from 'seedinfo.bin'
 		with open(seedif,'rb')as seedinfo:
 			if not seedinfo.read(4) == 'SEED':
 				raise SeedError("Not as seedinfo!")
 			seedcount = struct.unpack('<I',seedinfo.read(4))[0]
-
 			for i in range(seedcount):
 				tids.append(seedinfo.read(8))
 			for i in range(seedcount):
@@ -142,13 +149,13 @@ def getNewkeyY(keyY,header,titleId):
 		filenames = os.listdir(os.path.dirname(os.path.realpath(sys.argv[0])))
 		x = 0
 		for fn in filenames:
+		#Read seeds directly from savedata, dump savedata files from "nand:/data/<console-unique>/sysdata/0001000f/" and rename as *.sav
 			fn = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), fn)
 			if fnmatch.fnmatch(fn,'*.sav'):
 				with open(fn,'rb') as savefile:
 					savedata = savefile.read()
 					while savedata.find('SEEDDB')>=0:
 						SBoffset = savedata.find('SEEDDB')
-						a = savedata[SBoffset+24:SBoffset+28]
 						tidoffset = (struct.unpack('<I',savedata[SBoffset+24:SBoffset+28])[0] - 1) * 4096 + SBoffset - 52 + 4096
 						for i in range(2000):
 							tid = savedata[tidoffset:tidoffset+8]
@@ -162,15 +169,19 @@ def getNewkeyY(keyY,header,titleId):
 			else:
 				x += 1
 		if not x < len(filenames):
-			raise SeedError("Can't find SEEDDB file!")
+			raise SeedError("Can't find SEEDDB file!\nDump savedata files from (nand:/data/<console-unique>/sysdata/0001000f/) and rename as *.sav")
 	if not len(tids) == len(seeds):
 		raise SeedError('Seed info incomplete!')
+
+
 	for i in range(len(seeds)):
 		if tids[i] == titleId:
 			seedcheck = struct.unpack('>I',header.seedcheck)[0]
-			if int(sha256(seeds[i] + tids[i]).hexdigest()[:8],16) == seedcheck:
-				keystr = sha256(keyY + seeds[i]).hexdigest()[:32]
+			if int(sha256(seeds[i] + tids[i]).hexdigest()[:8],16) == seedcheck:  #Seed check hash is store at 0x114 of NCCH, this value is the she256 hash of (seed + TitleID)
+				keystr = sha256(keyY + seeds[i]).hexdigest()[:32]  #Get new KeyY hash string
 				v = []
+				
+				#Convert string to binary. Is there a better way?
 				for j in range(0,32,8):
 					v.append(int(keystr[j:j+8],16))
 				w = []
