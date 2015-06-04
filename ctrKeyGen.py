@@ -163,8 +163,6 @@ def getNewkeyY(keyY,header,titleId):
 				x += 1
 		if not x < len(filenames):
 			raise SeedError("Can't find SEEDDB file!")
-	print len(tids)
-	print len(seeds)
 	if not len(tids) == len(seeds):
 		raise SeedError('Seed info incomplete!')
 	for i in range(len(seeds)):
@@ -178,9 +176,8 @@ def getNewkeyY(keyY,header,titleId):
 				w = []
 				for j in v:
 					w.append(struct.pack('>I',j))
-				v = w
 				newkeyY = ''
-				for j in v:
+				for j in w:
 					newkeyY += j
 				return bytearray(newkeyY)
 			else:
