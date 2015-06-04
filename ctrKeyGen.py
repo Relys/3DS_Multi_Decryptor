@@ -16,10 +16,25 @@
 #####
 #seedinfo.bin format
 #
-#4  bytes   Magic "SEED"
-#4  bytes   Number of Seeds
-#8  bytes*(Number of Seeds)   TitleID
-#16 bytes*(Number of Seeds)   Seeds
+#  4  bytes   Magic "SEED"
+#  4  bytes   Number of Seeds
+#  8  bytes*(Number of Seeds)   TitleID
+# 16  bytes*(Number of Seeds)   Seeds
+#####
+#SEEDDB format
+#
+#    4  bytes   File index
+#    1  byte    "!" as the first file name
+#   47  bytes   The first file
+#    6  bytes   "SEEDDB" as the second file name
+#   18  bytes   Unknown_0
+#    4  bytes   SEEDDB file data offset (This value minus 1 then multiply by 0x1000 is the offset)
+#    4  bytes   SEEDDB file size
+# 4012  bytes   Unknown_1 (Padding?)
+#    4  bytes   Number of seeds(?) Need more files for analizing.
+# 4092  bytes   Unknown_2 (Padding?)
+# 2000  dwords  Title IDs (1 dwords per ID)
+# 4000  dwords  SEEDs (2 dwords per SEED)
 #####
 
 import os
@@ -149,7 +164,7 @@ def getNewkeyY(keyY,header,titleId):
 		filenames = os.listdir(os.path.dirname(os.path.realpath(sys.argv[0])))
 		x = 0
 		for fn in filenames:
-		#Read seeds directly from savedata, dump savedata files from "nand:/data/<console-unique>/sysdata/0001000f/" and rename as *.sav
+		#Read seeds directly from savedata.You should dump savedata files from "nand:/data/<console-unique>/sysdata/0001000f/" and rename as *.sav
 			fn = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), fn)
 			if fnmatch.fnmatch(fn,'*.sav'):
 				with open(fn,'rb') as savefile:
@@ -161,7 +176,7 @@ def getNewkeyY(keyY,header,titleId):
 							tid = savedata[tidoffset:tidoffset+8]
 							tids.append(tid)
 							tidoffset += 8
-						for i in range(2000):
+						for i in range(2000):          #Seeds upper limit is 2000, hard coding
 							seed = savedata[tidoffset:tidoffset+16]
 							seeds.append(bytearray(seed))
 							tidoffset += 16
@@ -169,7 +184,7 @@ def getNewkeyY(keyY,header,titleId):
 			else:
 				x += 1
 		if not x < len(filenames):
-			raise SeedError("Can't find SEEDDB file!\nDump savedata files from (nand:/data/<console-unique>/sysdata/0001000f/) and rename as *.sav")
+			raise SeedError("Can't find SEEDDB file!\nPlease dump savedata files from \n(nand:/data/<console-unique>/sysdata/0001000f/) and rename as *.sav")
 	if not len(tids) == len(seeds):
 		raise SeedError('Seed info incomplete!')
 
@@ -177,7 +192,7 @@ def getNewkeyY(keyY,header,titleId):
 	for i in range(len(seeds)):
 		if tids[i] == titleId:
 			seedcheck = struct.unpack('>I',header.seedcheck)[0]
-			if int(sha256(seeds[i] + tids[i]).hexdigest()[:8],16) == seedcheck:  #Seed check hash is store at 0x114 of NCCH, this value is the she256 hash of (seed + TitleID)
+			if int(sha256(seeds[i] + tids[i]).hexdigest()[:8],16) == seedcheck:  #Seed check hash is store at 0x114 of NCCH, this value is the sha256 hash of (seed + TitleID)
 				keystr = sha256(keyY + seeds[i]).hexdigest()[:32]  #Get new KeyY hash string
 				v = []
 				
@@ -241,6 +256,7 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
 	uses7xCrypto = bytearray(header.flags)[3]
 	if uses7xCrypto:
 		print tab + 'Uses 7.x NCCH crypto'
+	
 	useSeedCrypto = uses7xCrypto and header.flags[7] == 32
 	if useSeedCrypto:
 		keyY = getNewkeyY(keyY,header,struct.pack('I',int(titleId[8:],16))+struct.pack('I',int(titleId[:8],16)))
