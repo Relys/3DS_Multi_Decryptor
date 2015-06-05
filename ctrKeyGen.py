@@ -257,7 +257,7 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
 	if uses7xCrypto:
 		print tab + 'Uses 7.x NCCH crypto'
 	
-	useSeedCrypto = uses7xCrypto and header.flags[7] == 32
+	useSeedCrypto = header.flags[7] == 32
 	if useSeedCrypto:
 		keyY = getNewkeyY(keyY,header,struct.pack('I',int(titleId[8:],16))+struct.pack('I',int(titleId[:8],16)))
 		print tab + 'Use Seed NCCH crypto'
