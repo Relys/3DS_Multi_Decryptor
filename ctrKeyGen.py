@@ -208,7 +208,7 @@ def getNewkeyY(keyY,header,titleId):
 				return bytearray(newkeyY)
 			else:
 				raise SeedError('Seed check fail, wrong seed?')
-		raise SeedError("Can't find seed!")
+	raise SeedError("Can't find seed!")
 
 def parseNCSD(fh):
 	print 'Parsing NCSD in file "%s":' % os.path.basename(fh.name)
@@ -240,7 +240,7 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
 	fh.readinto(header) #Reads header into structure
 	
 	if titleId == '':
-		titleId = reverseCtypeArray(header.titleId)
+		titleId = reverseCtypeArray(header.programId)  #Use ProgramID instead, is it OK?
 	
 	keyY = bytearray(header.signature[:16])
 	
@@ -309,7 +309,7 @@ def parseNCCHSection(header, type, uses7xCrypto, useSeedCrypto, doPrint, tab):
 	counter = getNcchAesCounter(header, type)
 	keyY = bytearray(header.signature[:16])
 	
-	titleId = reverseCtypeArray(header.titleId)
+	titleId = reverseCtypeArray(header.programId)
 	if useSeedCrypto:
 		keyY = getNewkeyY(keyY,header,struct.pack('I',int(titleId[8:],16))+struct.pack('I',int(titleId[:8],16)))
 	
