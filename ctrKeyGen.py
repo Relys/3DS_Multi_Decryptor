@@ -33,7 +33,7 @@
 # 4012  bytes   Unknown_1 (Padding?)
 #    4  bytes   Number of seeds(?) Need more files for analizing.
 # 4092  bytes   Unknown_2 (Padding?)
-# 2000  dwords  Title IDs (1 dwords per ID)
+# 2000  dwords  Title IDs (1 dword per ID)
 # 4000  dwords  SEEDs (2 dwords per SEED)
 #####
 
@@ -44,7 +44,7 @@ import struct
 import fnmatch
 from hashlib import sha256
 from ctypes import *
-from binascii import hexlify
+from binascii import hexlify,unhexlify
 
 mediaUnitSize = 0x200
 
@@ -194,17 +194,7 @@ def getNewkeyY(keyY,header,titleId):
 			seedcheck = struct.unpack('>I',header.seedcheck)[0]
 			if int(sha256(seeds[i] + tids[i]).hexdigest()[:8],16) == seedcheck:  #Seed check hash is store at 0x114 of NCCH, this value is the sha256 hash of (seed + TitleID)
 				keystr = sha256(keyY + seeds[i]).hexdigest()[:32]  #Get new KeyY hash string
-				v = []
-				
-				#Convert string to binary. Is there a better way?
-				for j in range(0,32,8):
-					v.append(int(keystr[j:j+8],16))
-				w = []
-				for j in v:
-					w.append(struct.pack('>I',j))
-				newkeyY = ''
-				for j in w:
-					newkeyY += j
+				newkeyY = unhexlify(keystr)
 				return bytearray(newkeyY)
 			else:
 				raise SeedError('Seed check fail, wrong seed?')
