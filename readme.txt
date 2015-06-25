@@ -22,23 +22,15 @@ Thanks to enler for finding the correct gadget offset.
 
 credits:
 
-sbJFn5r - everything
-relys - coded the original C version of "ctrkeygen"
-xerpi - did some refactoring early on, that I then built off of and made ugly again. :(
+sbJFn5r - coding + initial versions of the python scripts
+relys - coding
+xerpi - did some refactoring early on, that was then built off of and made ugly again. :(
 CaitSith2 - Updates to CDNto3DS
 idunoe - Allow user specified moveable.sed
 einstein95 - Padding from .rsf
 
 Thanks:
 
-yellows8 and everyone that contributes to the 3dbrew wiki
+yellows8, plutooo and everyone else that contributes to the 3dbrew wiki
 megazig for the crypto functions
 some GBAtemper for the FS functions. Don't know who you are, but the person I got them from said they came from someone on GBAtemp.
-
-
-
-
-
-
-
-My code is awful, sorry if it's hard to read/follow.
