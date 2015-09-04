@@ -53,6 +53,7 @@ def SystemUsage():
 	print 'Usage: CDNto3DS.py TitleID TitleKey [-vers -redown -redec -no3ds -nocia]'
 	print '-vers   : version of title to fetch'
 	print '-redown : redownload content'
+	print '-nodown : don\'t download content, just print links'
 	print '-redec  : re-attempt content decryption'
 	print '-no3ds  : don\'t build 3DS file'
 	print '-nocia  : don\'t build CIA file'
@@ -69,12 +70,15 @@ make3ds = 1
 makecia = 1
 nohash = 0
 dlversion = -1
+noDownload = 0
+noDownloadFile = None
 
 for i in xrange(len(sys.argv)) :
 	if sys.argv[i] == '-redown': forceDownload = 1
 	elif sys.argv[i] == '-redec': forceDecrypt = 1
 	elif sys.argv[i] == '-no3ds': makecia = 0
 	elif sys.argv[i] == '-nocia': make3ds = 0
+	elif sys.argv[i] == '-nodown': noDownload = 1
 	elif sys.argv[i] == '-vers': 
 		i += 1
 		dlversion = sys.argv[i]
@@ -138,7 +142,11 @@ print 'Content count: ' + str(contentCount) + '\n'
 if contentCount > 8 :
 	make3ds = 0
 
-	
+# If speicifed nodown option, print links to a file.
+if noDownload == 1 :
+	noDownloadFile = open('CDNLinks.txt', 'a')
+	noDownloadFile.write("TitleId %s\n"%(titleid))
+
 # Download Contents
 fSize = 16*1024
 for i in xrange(contentCount):
@@ -165,12 +173,16 @@ for i in xrange(contentCount):
 
 	outfname = titleid + ('_v' + str(dlversion), '')[dlversion == -1] + '/' + cID
 	if os.path.exists(outfname) == 0 or forceDownload == 1 or os.path.getsize(outfname) != unpack('>Q', tmd[cOffs+8:cOffs+16])[0]:
-		response = urllib2.urlopen(baseurl + '/' + cID)
-		chunk_read(response, outfname, report_hook=chunk_report)
-		
-		#If we redownloaded the content, then decrypting it is implied.
-		call(["aescbc", outfname, outfname + '.dec', titlekey, cIDX + '0000000000000000000000000000'])
-	
+		if noDownload == 0:
+			response = urllib2.urlopen(baseurl + '/' + cID)
+			chunk_read(response, outfname, report_hook=chunk_report)
+			
+			#If we redownloaded the content, then decrypting it is implied.
+			call(["aescbc", outfname, outfname + '.dec', titlekey, cIDX + '0000000000000000000000000000'])
+		else :
+			print("Content Link:  %s\n Target File:  %s\n\n" % (baseurl + '/' + cID, outfname))
+			noDownloadFile.write("%s:%s\n"%(outfname,baseurl+'/'+cID))
+			continue
 	elif os.path.exists(outfname + '.dec') == 0 or forceDecrypt == 1 or os.path.getsize(outfname + '.dec') != unpack('>Q', tmd[cOffs+8:cOffs+16])[0]:
 		call(["aescbc", outfname, outfname + '.dec', titlekey, cIDX + '0000000000000000000000000000'])
 
@@ -209,6 +221,11 @@ for i in xrange(contentCount):
 	print '\n'
 	mCiaCmd = mCiaCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX + ':0x' + cID
 	mRomCmd = mRomCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX + ':0x' + cID
+
+if noDownload == 1 :
+	noDownloadFile.close()
+	print "URL links appended to CDNLinks.txt"
+	raise SystemExit(0)
 
 # Create RSF File
 romrsf = 'Option:\n  MediaFootPadding: true\n  EnableCrypt: false\nSystemControlInfo:\n  SaveDataSize: $(SaveSize)K'
