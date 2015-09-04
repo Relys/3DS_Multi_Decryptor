@@ -71,6 +71,7 @@ makecia = 1
 nohash = 0
 dlversion = -1
 noDownload = 0
+noDownloadFile = None
 
 for i in xrange(len(sys.argv)) :
 	if sys.argv[i] == '-redown': forceDownload = 1
@@ -141,7 +142,11 @@ print 'Content count: ' + str(contentCount) + '\n'
 if contentCount > 8 :
 	make3ds = 0
 
-	
+# If speicifed nodown option, print links to a file.
+if noDownload == 1 :
+	noDownloadFile = open('CDNLinks.txt', 'a')
+	noDownloadFile.write("TitleId %s\n"%(titleid))
+
 # Download Contents
 fSize = 16*1024
 for i in xrange(contentCount):
@@ -176,6 +181,7 @@ for i in xrange(contentCount):
 			call(["aescbc", outfname, outfname + '.dec', titlekey, cIDX + '0000000000000000000000000000'])
 		else :
 			print("Content Link:  %s\n Target File:  %s\n\n" % (baseurl + '/' + cID, outfname))
+			noDownloadFile.write("%s:%s\n"%(outfname,baseurl+'/'+cID))
 			continue
 	elif os.path.exists(outfname + '.dec') == 0 or forceDecrypt == 1 or os.path.getsize(outfname + '.dec') != unpack('>Q', tmd[cOffs+8:cOffs+16])[0]:
 		call(["aescbc", outfname, outfname + '.dec', titlekey, cIDX + '0000000000000000000000000000'])
@@ -215,6 +221,11 @@ for i in xrange(contentCount):
 	print '\n'
 	mCiaCmd = mCiaCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX + ':0x' + cID
 	mRomCmd = mRomCmd + ' -i ' + outfname + '.dec' + ':0x' + cIDX + ':0x' + cID
+
+if noDownload == 1 :
+	noDownloadFile.close()
+	print "URL links appended to CDNLinks.txt"
+	raise SystemExit(0)
 
 # Create RSF File
 romrsf = 'Option:\n  MediaFootPadding: true\n  EnableCrypt: false\nSystemControlInfo:\n  SaveDataSize: $(SaveSize)K'
