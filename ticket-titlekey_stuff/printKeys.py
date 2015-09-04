@@ -3,8 +3,10 @@ import os
 from binascii import hexlify
 
 with open('decTitleKeys.bin', 'rb') as fh:
-	nEntries = struct.unpack('<I', fh.read(4))[0]
-	fh.seek(12, os.SEEK_CUR)
+	#struct.unpack would cause difference between 32 and 64 systems.
+	#nEntries = struct.unpack('<I', fh.read(4))[0]
+	nEntries = os.fstat(fh.fileno()).st_size / 32
+	fh.seek(16, os.SEEK_SET)
 	
 	for i in xrange(nEntries):
 		fh.seek(8, os.SEEK_CUR)
